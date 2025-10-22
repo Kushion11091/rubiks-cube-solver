@@ -5,31 +5,14 @@
 #define EDGE_POS "Improper edge position values"
 #define CORNER_OR "Improper corner orientation values"
 #define EDGE_OR "Improper edge orientation values"
+#define CORNER_SUM "Improper corner orientation sum value"
+#define EDGE_SUM "Improper edge orientation sum value"
+#define PERMUTATION "Improper position permutations"
 
 namespace slvr
 {
-	void Cube::cycle4(small arr[], small idx1, small idx2, small idx3, small idx4) noexcept
-	{
-		small temp = arr[idx4];
-		arr[idx4] = arr[idx3];
-		arr[idx3] = arr[idx2];
-		arr[idx2] = arr[idx1];
-		arr[idx1] = temp;
-	}
-
-	void Cube::cycle2(small arr[], small idx1, small idx2, small idx3, small idx4) noexcept
-	{
-		small temp = arr[idx1];
-		arr[idx1] = arr[idx2];
-		arr[idx2] = temp;
-
-		temp = arr[idx3];
-		arr[idx3] = arr[idx4];
-		arr[idx4] = temp;
-	}
-
-	void Cube::move(small corner1, small corner2, small corner3, small corner4,
-		            small edge1,   small edge2,   small edge3,   small edge4  ) noexcept
+	void Cube::move(byte corner1, byte corner2, byte corner3, byte corner4,
+		            byte edge1,   byte edge2,   byte edge3,   byte edge4  ) noexcept
 	{
 		cycle4(cornerP_, corner1, corner2, corner3, corner4);
 		cycle4(cornerO_, corner1, corner2, corner3, corner4);
@@ -37,10 +20,10 @@ namespace slvr
 		cycle4(edgeO_,   edge1,   edge2,   edge3,   edge4  );
 	}
 
-	void Cube::swap(small corner1, small corner2,
-		            small corner3, small corner4,
-				    small edge1,   small edge2,
-				    small edge3,   small edge4) noexcept
+	void Cube::swap(byte corner1, byte corner2,
+		            byte corner3, byte corner4,
+				    byte edge1,   byte edge2,
+				    byte edge3,   byte edge4) noexcept
 	{
 		cycle2(cornerP_, corner1, corner2, corner3, corner4);
 		cycle2(cornerO_, corner1, corner2, corner3, corner4);
@@ -48,95 +31,157 @@ namespace slvr
 		cycle2(edgeO_,   edge1,   edge2,   edge3,   edge4  );
 	}
 
-	void Cube::flipEdge(small pos) noexcept {edgeO_[pos] ^= 1;}
+	void Cube::flipEdge(byte pos) noexcept {edgeO_[pos] ^= 1;}
 
-	void Cube::twistCorner(small pos, small val) noexcept
+	void Cube::twistCorner(byte pos, byte val) noexcept
 	{
 		cornerO_[pos] = (cornerO_[pos] + val) % 3;
 	}
 
-	void Cube::checkLengths(small cornerP[], small cornerO[], small edgeP[], small edgeO[])
-	{
-		if (sizeof(cornerP) !=  8 || sizeof(cornerO) !=  8
-	     || sizeof(edgeP)   != 12 || sizeof(edgeO)   != 12)
-		{
-			throw std::invalid_argument(ARR_LEN);
-		}
-	}
-
-	void Cube::checkPositions(small corners[], small edges[])
+	void Cube::checkPositions(const corner_arr& corners, const edge_arr& edges)
 	{
 		bool tempc[ 8] = {0};
 		bool tempe[12] = {0};
 
-		for (small i = 0; i < 8; ++i)
+		for (byte i : corners)
 		{
-			if (tempc[corners[i]] || corners[i] >= 8 || corners[i] < 0) {throw std::invalid_argument(CORNER_POS);}
+			if (tempc[i] || i >= 8) {throw std::invalid_argument(CORNER_POS);}
 
-			tempc[corners[i]] = -1;
+			tempc[i] = true;
 		}
 
-		for (small i = 0; i < 12; ++i)
+		for (byte i : edges)
 		{
-			if (tempe[edges[i]] || edges[i] >= 12 || edges[i] < 0) {throw std::invalid_argument(EDGE_POS);}
+			if (tempe[i] || i >= 12) {throw std::invalid_argument(EDGE_POS);}
 
-			tempe[edges[i]] = -1;
-		}
-	}
-
-	void Cube::checkOrientations(small corners[], small edges[])
-	{
-		for (small i = 0; i < 8; ++i)
-		{
-			if (corners[i] < 0 || corners[i] >= 3) {throw std::invalid_argument(CORNER_OR);}
-		}
-
-		for (small i = 0; i < 12; ++i)
-		{
-			if (edges[i] != 0 && edges[i] != 1) {throw std::invalid_argument(EDGE_OR);}
+			tempe[i] = true;
 		}
 	}
 
-	Cube::Cube() noexcept
+	void Cube::checkOrientations(const corner_arr& corners, const edge_arr& edges)
 	{
-		for (small i = 0; i < 12;)
+		for (byte i : corners)
 		{
-			edgeP_[i] = i;
-			edgeO_[i++] = 0;
+			if (i > 2) {throw std::invalid_argument(CORNER_OR);}
 		}
-		for (small i = 0; i < 8;)
+
+		for (byte i : edges)
 		{
-			cornerP_[i] = i;
-			cornerO_[i++] = 0;
+			if (i > 1) {throw std::invalid_argument(EDGE_OR);}
 		}
 	}
 
-	Cube::Cube(const std::string &moves)
+	void Cube::checkOrientationSum(const corner_arr& cornerO, const edge_arr& edgeO)
 	{
-		*this = Cube();
+		regi cSum = 0, eSum = 0;
+
+		for (byte i : cornerO) {cSum += i;}
+		for (byte i : edgeO)   {eSum += i;}
+
+		if (cSum % 3) {throw std::invalid_argument(CORNER_SUM);}
+		if (eSum & 1) {throw std::invalid_argument(EDGE_SUM);}
+	}
+
+	void Cube::checkPermutationParity(const corner_arr& corners, const edge_arr& edges)
+	{
+		if (!(checkParity(corners) ^ checkParity(edges))) {throw std::invalid_argument(PERMUTATION);}
+	}
+
+	void Cube::checkCube(const corner_arr& cornerP, const corner_arr& cornerO, const edge_arr& edgeP, const edge_arr& edgeO)
+	{
+		checkPositions(cornerP, edgeP);
+		checkOrientations(cornerO, edgeO);
+		checkOrientationSum(cornerO, edgeO);
+		checkPermutationParity(cornerP, edgeP);
+	}
+
+	Cube::Cube() noexcept :
+		cornerP_{0,1,2,3,4,5,6,7},
+		cornerO_{},
+		edgeP_{0,1,2,3,4,5,6,7,8,9,10,11},
+		edgeO_{}
+	{}
+	
+
+	Cube::Cube(const std::string& moves) : Cube()
+	{
 		(*this).applyMoves(moves);
 	}
 
-	Cube::Cube(const Cube &other) noexcept
+	Cube::Cube(const Cube& other) noexcept :
+		cornerP_(other.cornerP_),
+		cornerO_(other.cornerO_),
+		edgeP_(other.edgeP_),
+		edgeO_(other.edgeO_),
+		solution_(other.solution_)
+	{}
+
+	Cube::Cube(const corner_arr& cornerP, const corner_arr& cornerO, const edge_arr& edgeP, const edge_arr& edgeO)
 	{
-		memcpy(cornerO_, other.cornerO_, sizeof(cornerO_));
-		memcpy(cornerP_, other.cornerP_, sizeof(cornerP_));
-		memcpy(edgeO_, other.edgeO_, sizeof(edgeO_));
-		memcpy(edgeP_, other.edgeP_, sizeof(edgeP_));
-		solution_ = other.solution_;
+		checkCube(cornerP, cornerO, edgeP, edgeO);
+		cornerP_ = cornerP;
+		cornerO_ = cornerO;
+		edgeP_ = edgeP;
+		edgeO_ = edgeO;
 	}
 
-	Cube &Cube::operator=(const Cube &other) noexcept
+	Cube& Cube::operator=(const Cube& other) noexcept
 	{
 		if (this != &other)
 		{
-			memcpy(cornerO_, other.cornerO_, sizeof(cornerO_));
-			memcpy(cornerP_, other.cornerP_, sizeof(cornerP_));
-			memcpy(edgeO_, other.edgeO_, sizeof(edgeO_));
-			memcpy(edgeP_, other.edgeP_, sizeof(edgeP_));
+			cornerP_ = other.cornerP_;
+			cornerO_ = other.cornerO_;
+			edgeP_ = other.edgeP_;
+			edgeO_ = other.edgeO_;
 			solution_ = other.solution_;
 		}
 		return *this;
+	}
+
+	Cube::Cube(Cube&& other) noexcept :
+		cornerP_(std::move(other.cornerP_)),
+		cornerO_(std::move(other.cornerO_)),
+		edgeP_(std::move(other.edgeP_)),
+		edgeO_(std::move(other.edgeO_)),
+		solution_(std::move(other.solution_))
+	{}
+
+	Cube& Cube::operator=(Cube&& other) noexcept
+	{
+		if (this != &other)
+		{
+			cornerP_ = std::move(other.cornerP_);
+			cornerO_ = std::move(other.cornerO_);
+			edgeP_ = std::move(other.edgeP_);
+			edgeO_ = std::move(other.edgeO_);
+			solution_ = std::move(other.solution_);
+		}
+
+		return *this;
+	}
+
+	const corner_arr&        Cube::cornerPositions()    const noexcept {return cornerP_;        }
+	const corner_arr&        Cube::cornerOrientations() const noexcept {return cornerO_;        }
+	const edge_arr&          Cube::edgePositions()      const noexcept {return edgeP_;          }
+	const edge_arr&          Cube::edgeOrientations()   const noexcept {return edgeO_;          }
+	const std::vector<Move>& Cube::solution()           const noexcept {return solution_;       }
+	
+	Move Cube::lastMove() const noexcept 
+	{
+		if (solution_.empty()) {return Move::NULL_MOVE;}
+
+		return solution_.back();
+	}
+
+	Move Cube::secondLastMove() const noexcept
+	{
+		if (solution_.size() <= 1) {return Move::NULL_MOVE;}
+
+		using RevIterator = std::reverse_iterator<std::vector<slvr::Move>::const_iterator>;
+
+		RevIterator iterator = ++solution_.rbegin();
+
+		return *iterator;
 	}
 
 	void Cube::R() noexcept
@@ -334,22 +379,44 @@ namespace slvr
 			case Move::B:       B();      break;
 			case Move::B_PRIME: BPrime(); break;
 			case Move::B2:      B2();     break;
+
+			default: break;
 		}
 	}
 
 	void Cube::addMove(Move move)
 	{
-		applyMove(move);
-		solution_.push_back(move);
+		if (move != Move::NULL_MOVE)
+		{
+			applyMove(move);
+
+			solution_.push_back(move);
+		}
 	}
 
-	void Cube::applyMoves(const std::string &moves)
+	Cube& Cube::operator+=(Move move)
 	{
-		std::size_t n = moves.size();
+		addMove(move);
 
-		for (std::size_t i = 0; i < n; ++i)
+		return *this;
+	}
+
+	Cube Cube::operator+(Move move) const
+	{
+		Cube c = *this;
+
+		c.addMove(move);
+
+		return c;
+	}
+
+	void Cube::applyMoves(const std::string& moves)
+	{
+		regi n = moves.size();
+
+		for (regi i = 0; i < n; ++i)
 		{
-			small moveSmall;
+			byte moveByte;
 
 			if (!(moves[i] == 'r' || moves[i] == 'R'
 			   || moves[i] == 'l' || moves[i] == 'L'
@@ -361,48 +428,48 @@ namespace slvr
 			switch (moves[i])
 			{
 				case 'r':
-				case 'R': moveSmall = 0;  break;
+				case 'R': moveByte = 0;  break;
 
 				case 'l':
-				case 'L': moveSmall = 3;  break;
+				case 'L': moveByte = 3;  break;
 
 				case 'u':
-				case 'U': moveSmall = 6;  break;
+				case 'U': moveByte = 6;  break;
 
 				case 'd':
-				case 'D': moveSmall = 9;  break;
+				case 'D': moveByte = 9;  break;
 
 				case 'f':
-				case 'F': moveSmall = 12; break;
+				case 'F': moveByte = 12; break;
 
 				case 'b':
-				case 'B': moveSmall = 15; break;
+				case 'B': moveByte = 15; break;
 
 				default: throw std::invalid_argument("Illegal move\n");
 			}
 			
-			std::size_t j = i + 1;
+			regi j = i + 1;
 
-			if (j == n) {applyMove(static_cast<Move>(moveSmall)); return;}
+			if (j == n) {applyMove(static_cast<Move>(moveByte)); return;}
 
 			switch (moves[j])
 			{
-				case '\'': applyMove(static_cast<Move>(moveSmall + 1)); break;
+				case '\'': applyMove(static_cast<Move>(moveByte + 1)); break;
 
-				case '2': applyMove(static_cast<Move>(moveSmall + 2)); break;
+				case '2': applyMove(static_cast<Move>(moveByte + 2)); break;
 
-				default: applyMove(static_cast<Move>(moveSmall)); break;
+				default: applyMove(static_cast<Move>(moveByte)); break;
 			}
 		}
 	}
 
-	void Cube::addMoves(const std::string &moves)
+	void Cube::addMoves(const std::string& moves)
 	{
-		std::size_t n = moves.size();
+		regi n = moves.size();
 
-		for (std::size_t i = 0; i < n; ++i)
+		for (regi i = 0; i < n; ++i)
 		{
-			small moveSmall;
+			byte moveByte;
 
 			if (!(moves[i] == 'r' || moves[i] == 'R'
 			   || moves[i] == 'l' || moves[i] == 'L'
@@ -414,71 +481,127 @@ namespace slvr
 			switch (moves[i])
 			{
 				case 'r':
-				case 'R': moveSmall = 0;  break;
+				case 'R': moveByte = 0;  break;
 
 				case 'l':
-				case 'L': moveSmall = 3;  break;
+				case 'L': moveByte = 3;  break;
 
 				case 'u':
-				case 'U': moveSmall = 6;  break;
+				case 'U': moveByte = 6;  break;
 
 				case 'd':
-				case 'D': moveSmall = 9;  break;
+				case 'D': moveByte = 9;  break;
 
 				case 'f':
-				case 'F': moveSmall = 12; break;
+				case 'F': moveByte = 12; break;
 
 				case 'b':
-				case 'B': moveSmall = 15; break;
+				case 'B': moveByte = 15; break;
 
 				default: throw std::invalid_argument("Illegal move\n");
 			}
 			
-			std::size_t j = i + 1;
+			regi j = i + 1;
 
-			if (j == n) {addMove(static_cast<Move>(moveSmall)); return;}
+			if (j == n) {addMove(static_cast<Move>(moveByte)); return;}
 
 			switch (moves[j])
 			{
-				case '\'': addMove(static_cast<Move>(moveSmall + 1)); break;
+				case '\'': addMove(static_cast<Move>(moveByte + 1)); break;
 
-				case '2': addMove(static_cast<Move>(moveSmall + 2)); break;
+				case '2': addMove(static_cast<Move>(moveByte + 2)); break;
 
-				default: addMove(static_cast<Move>(moveSmall)); break;
+				default: addMove(static_cast<Move>(moveByte)); break;
 			}
 		}
 	}
 
-	std::ostream &operator<<(std::ostream &os, const Cube &other)
+	Cube& Cube::operator+=(const std::string& moves)
 	{
-		small i = 0;
+		addMoves(moves);
 
+		return *this;
+	}
+
+	Cube Cube::operator+(const std::string& moves) const
+	{
+		Cube c = *this;
+
+		c.addMoves(moves);
+
+		return c;
+	}
+
+	void Cube::undo() noexcept
+	{
+		if (!solution_.empty())
+		{
+			byte move = static_cast<byte>(solution_.back());
+
+			switch(move % 3)
+			{
+				case 0: ++move; break;
+				case 1: --move; break;
+				case 2:         break;
+			}
+
+			applyMove(static_cast<Move>(move));
+
+			solution_.pop_back();
+		}
+	}
+
+	void Cube::operator--() noexcept {undo();}
+
+	bool Cube::operator==(const Cube& other) const noexcept
+	{
+		return (cornerP_ == other.cornerP_
+			 && cornerO_ == other.cornerO_
+			 && edgeP_   == other.edgeP_
+			 && edgeO_   == other.edgeO_);
+	}
+
+	bool Cube::equals(const Cube& other) const noexcept
+	{
+		return (*this == other);
+	}
+
+	bool Cube::isSolved() const noexcept
+	{
+		return (cornerP_ == corner_arr{0,1,2,3,4,5,6,7}
+			 && cornerO_ == corner_arr{}
+			 && edgeP_ == edge_arr{0,1,2,3,4,5,6,7,8,9,10,11}
+			 && edgeO_ == edge_arr{});
+	}
+
+	std::ostream& operator<<(std::ostream& os, const Cube& other)
+	{
 		os << "Corner Positions:";
-		for (; i < 8;)
+		for (byte i : other.cornerP_)
 		{
 			os << ' '
-			   << static_cast<int>(other.cornerP_[i++]);
+			   << static_cast<int>(i);
 		}
 
 		os << "\nCorner Orientations:";
-		for (i = 0; i < 8;)
+		for (byte i : other.cornerO_)
 		{
 			os << ' '
-			   << static_cast<int>(other.cornerO_[i++]);
+			   << static_cast<int>(i);
 		}
 
 		os << "\nEdge Positions:";
-		for (i = 0; i < 12;)
+		for (byte i : other.edgeP_)
 		{
 			os << ' '
-			   << static_cast<int>(other.edgeP_[i++]);
+			   << static_cast<int>(i);
 		}
 
 		os << "\nEdge Orientations:";
-		for (i = 0; i < 12;)
+		for (byte i : other.edgeO_)
 		{
 			os << ' '
-			   << static_cast<int>(other.edgeO_[i++]);
+			   << static_cast<int>(i);
 		}
 
 		return os;
