@@ -11,6 +11,71 @@
 
 namespace slvr
 {
+	std::ostream& operator<<(std::ostream& os, Move move)
+	{
+		if (move != Move::NULL_MOVE)
+		{
+			byte num = static_cast<byte>(move);
+
+			switch (num / 3)
+			{
+				case 0: os << 'R'; break;
+				case 1: os << 'L'; break;
+				case 2: os << 'U'; break;
+				case 3: os << 'D'; break;
+				case 4: os << 'F'; break;
+				case 5: os << 'B'; break;
+			}
+
+			switch (num % 3)
+			{
+				case 0: return os;           break;
+				case 1: return (os << '\''); break;
+				case 2: return (os << '2' ); break;
+			}
+		}
+
+		return os;
+	}
+
+	std::ostream& operator<<(std::ostream& os, const std::vector<Move>& moves)
+	{
+		regi n = moves.size();
+
+		os << '[';
+
+		for (regi i = 0; i < n; ++i)
+		{
+			os << moves[i];
+
+			if (i + 1 != n) {os << ", ";}
+		}
+
+		return (os << ']');
+	}
+
+	Face toFace(Move move) noexcept
+	{
+		if (move == Move::NULL_MOVE) {return Face::NULL_FACE;}
+
+		byte num = static_cast<byte>(move);
+		num /= 3;
+		Face face = static_cast<Face>(num);
+
+		return face;
+	}
+
+	Face opposite(Face face) noexcept
+	{
+		if (face == Face::NULL_FACE) {return face;}
+
+		byte num = static_cast<byte>(face);
+		
+		if (num % 2) {return static_cast<Face>(--num);}
+
+		return static_cast<Face>(++num);
+	}
+
 	void Cube::move(byte corner1, byte corner2, byte corner3, byte corner4,
 		            byte edge1,   byte edge2,   byte edge3,   byte edge4  ) noexcept
 	{
@@ -160,28 +225,28 @@ namespace slvr
 		return *this;
 	}
 
-	const corner_arr&        Cube::cornerPositions()    const noexcept {return cornerP_;        }
-	const corner_arr&        Cube::cornerOrientations() const noexcept {return cornerO_;        }
-	const edge_arr&          Cube::edgePositions()      const noexcept {return edgeP_;          }
-	const edge_arr&          Cube::edgeOrientations()   const noexcept {return edgeO_;          }
-	const std::vector<Move>& Cube::solution()           const noexcept {return solution_;       }
+	const corner_arr&        Cube::cornerPositions()    const noexcept {return cornerP_; }
+	const corner_arr&        Cube::cornerOrientations() const noexcept {return cornerO_; }
+	const edge_arr&          Cube::edgePositions()      const noexcept {return edgeP_;   }
+	const edge_arr&          Cube::edgeOrientations()   const noexcept {return edgeO_;   }
+	const std::vector<Move>& Cube::solution()           const noexcept {return solution_;}
 	
-	Move Cube::lastMove() const noexcept 
+	Face Cube::lastFace() const noexcept 
 	{
-		if (solution_.empty()) {return Move::NULL_MOVE;}
+		if (solution_.empty()) {return Face::NULL_FACE;}
 
-		return solution_.back();
+		return toFace(solution_.back());
 	}
 
-	Move Cube::secondLastMove() const noexcept
+	Face Cube::secondLastFace() const noexcept
 	{
-		if (solution_.size() <= 1) {return Move::NULL_MOVE;}
+		if (solution_.size() <= 1) {return Face::NULL_FACE;}
 
 		using RevIterator = std::reverse_iterator<std::vector<slvr::Move>::const_iterator>;
 
 		RevIterator iterator = ++solution_.rbegin();
 
-		return *iterator;
+		return toFace(*iterator);
 	}
 
 	void Cube::R() noexcept
@@ -566,12 +631,29 @@ namespace slvr
 		return (*this == other);
 	}
 
+	bool Cube::operator!=(const Cube& other) const noexcept
+	{
+		return !(*this == other);
+	}
+
 	bool Cube::isSolved() const noexcept
 	{
 		return (cornerP_ == corner_arr{0,1,2,3,4,5,6,7}
 			 && cornerO_ == corner_arr{}
 			 && edgeP_ == edge_arr{0,1,2,3,4,5,6,7,8,9,10,11}
 			 && edgeO_ == edge_arr{});
+	}
+
+	bool Cube::pruneMove(Move move) const noexcept
+	{
+		Face cubeFace = (*this).lastFace();
+        Face moveFace = toFace(move);
+
+        if (cubeFace == moveFace) {return true;}
+
+        if (moveFace == opposite(cubeFace) && moveFace == (*this).secondLastFace()) {return true;}
+
+		return false;
 	}
 
 	std::ostream& operator<<(std::ostream& os, const Cube& other)

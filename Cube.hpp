@@ -26,12 +26,19 @@ namespace slvr
 		NULL_MOVE = UCHAR_MAX
 	};
 
+	std::ostream& operator<<(std::ostream& os, Move move);
+
+	std::ostream& operator<<(std::ostream& os, const std::vector<Move>& moves);
+
 	enum class Face : byte
 	{
 		R, L, U, D, F, B,
 
 		NULL_FACE = UCHAR_MAX
 	};
+
+	[[nodiscard]] Face toFace(Move move) noexcept;
+	[[nodiscard]] Face opposite(Face face) noexcept;
 
 	class Cube
 	{
@@ -107,13 +114,13 @@ namespace slvr
 		Cube& operator=(Cube&& other) noexcept;
 		~Cube() = default;
 
-		const corner_arr&        cornerPositions()    const noexcept;
-		const corner_arr&        cornerOrientations() const noexcept;
-		const edge_arr&          edgePositions()      const noexcept;
-		const edge_arr&          edgeOrientations()   const noexcept;
-		const std::vector<Move>& solution()           const noexcept;
-		      Move               lastMove()           const noexcept;
-			  Move               secondLastMove()	  const noexcept;
+		[[nodiscard]] const corner_arr&        cornerPositions()    const noexcept;
+		[[nodiscard]] const corner_arr&        cornerOrientations() const noexcept;
+		[[nodiscard]] const edge_arr&          edgePositions()      const noexcept;
+		[[nodiscard]] const edge_arr&          edgeOrientations()   const noexcept;
+		[[nodiscard]] const std::vector<Move>& solution()           const noexcept;
+		[[nodiscard]]       Face               lastFace()           const noexcept;
+		[[nodiscard]]  	  	Face               secondLastFace()	  	const noexcept;
 
 		void R()      noexcept;
 		void RPrime() noexcept;
@@ -154,8 +161,11 @@ namespace slvr
 
 		[[nodiscard]] bool operator==(const Cube& other) const noexcept;
 		[[nodiscard]] bool equals(const Cube& other) const noexcept;
+		[[nodiscard]] bool operator!=(const Cube& other) const noexcept;
 
 		[[nodiscard]] bool isSolved() const noexcept;
+
+		[[nodiscard]] bool pruneMove(Move move) const noexcept;
 
 		friend std::ostream& operator<<(std::ostream& os, const Cube& other);
 	};

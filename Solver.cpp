@@ -2,6 +2,35 @@
 
 namespace slvr
 {
+    namespace nogroup
+    {
+        bool dfs(Cube& cube, regi depth, regi maxDepth)
+        {
+            if (cube.isSolved()) {return true;}
+            if (depth == maxDepth) {return false;}
+
+            for (byte i = 0; i < 18; ++i)
+            {
+                Move move = static_cast<Move>(i);
+
+                Face cubeFace = cube.lastFace();
+                Face moveFace = toFace(move);
+
+                if (cubeFace == moveFace) {continue;}
+
+                if (moveFace == opposite(cubeFace) && moveFace == cube.secondLastFace()) {continue;}
+
+                cube += move;
+
+                if (dfs(cube, depth + 1, maxDepth)) {return true;}
+
+                cube.undo();
+            }
+
+            return false;
+        }
+    }
+
     namespace thistlethwaite
     {
         bool inG1(const Cube& cube) noexcept
